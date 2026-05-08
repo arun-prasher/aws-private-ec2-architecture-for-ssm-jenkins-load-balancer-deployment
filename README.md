@@ -500,65 +500,50 @@ Create the service file:
 sudo vim /etc/systemd/system/web-api-gunicorn.service
 ```
 
-Core `ExecStart` line:
-
 ```text
 [Unit]
-Description=Portal API (Gunicorn)
+Description=Web API (Gunicorn)
 After=network-online.target
 Wants=network-online.target
 
-# Prevent infinite restart loops (recommended for production)
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
 Type=simple
-User=adms
-Group=adms
+User=portal
+Group=portal
 UMask=0027
 
-# Your deploy flips this symlink atomically
-WorkingDirectory=/opt/example/adms/current
+WorkingDirectory=/opt/example/web-api/current
 
-# Load secrets/config (must exist)
-EnvironmentFile=/opt/example/adms/shared/.env.prod
+EnvironmentFile=/opt/example/web-api/shared/.env.prod
 Environment="DJANGO_SETTINGS_MODULE=settings"
-Environment="HOME=/opt/example/adms/shared/home"
-Environment="TMPDIR=/opt/example/adms/shared/tmp"
-Environment="XDG_CACHE_HOME=/opt/example/adms/shared/.cache"
+Environment="HOME=/opt/example/web-api/shared/home"
+Environment="TMPDIR=/opt/example/web-api/shared/tmp"
+Environment="XDG_CACHE_HOME=/opt/example/web-api/shared/.cache"
 
-# Creates /run/adms and keeps it owned correctly
-RuntimeDirectory=adms
+RuntimeDirectory=web-api
 RuntimeDirectoryMode=0750
 
-
-# Gunicorn command (TCP bind example)
-ExecStart=/opt/example/adms/venv/bin/gunicorn \
+ExecStart=/opt/example/web-api/venv/bin/gunicorn \
   v1.wsgi:application \
-  --name adms \
+  --name web-api \
   --bind 127.0.0.1:8000 \
   --workers 3 \
   --timeout 120 \
   --access-logfile - \
   --error-logfile -
 
-# Explicitly no PID file (Type=simple)
-PIDFile=
-
-# Restart behavior
 Restart=always
 RestartSec=3
 
-# Shutdown / safety
 KillSignal=SIGQUIT
 TimeoutStopSec=30
 
-# Hardening
 PrivateTmp=true
 NoNewPrivileges=true
 
-# Limits
 LimitNOFILE=65535
 
 [Install]
