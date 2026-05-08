@@ -394,7 +394,72 @@ Install Nginx:
 ```bash
 sudo apt-get update
 sudo apt-get install -y nginx
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    client_max_body_size 50M;
+
+    # Logs
+    access_log /var/log/nginx/example.access.log;
+    error_log  /var/log/nginx/example.error.log;
+
+    # -----------------------------
+    # ALB health check (IMPORTANT)
+    # -----------------------------
+    location = /health {
+        access_log off;
+        return 200 "OK";
+        add_header Content-Type text/plain;
+    }
+
+    # ---------------------------------------------------
+    # If ALB sends /api (without slash), normalize it
+    # ---------------------------------------------------
+    location = /api {
+        return 301 /api/;
+    }
+
+    # -----------------------------
+    # API reverse proxy
+    # -----------------------------
+    location /api/ {
+
+        # 🔥 Your backend app (maybe Gunicorn)
+        proxy_pass http://127.0.0.1:8000;
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+
+        # Keep the host & client IP details
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+
+        # ALB terminates HTTPS → this tells Django it was HTTPS
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+
+        # Optional: if your app expects original URL info
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Port  $server_port;
+
+        # Avoid proxy buffering issues on APIs / streaming responses
+        proxy_buffering off;
+    }
+
+    # -----------------------------
+    # Default fallback (optional)
+    # -----------------------------
+    location / {
+        return 404;
+    }
+}
+
 ```
+
 
 Enable and start it:
 
